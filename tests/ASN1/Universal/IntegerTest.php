@@ -281,4 +281,35 @@ class IntegerTest extends ASN1TestCase
         $binaryData .= chr(0xA0);
         Integer::fromBinary($binaryData);
     }
+
+    public function getNearLimitsFixtures()
+    {
+        return [
+            [0,"020100"],
+            [127,"02017f"],
+            [128,"02020080"],
+            [256,"02020100"],
+            [-128,"020180"],
+            [-129,"0202ff7f"],
+        ];
+    }
+
+    /**
+     * @dataProvider getNearLimitsFixtures
+     * @param $integerValue
+     * @param $der
+     * @throws \FG\ASN1\Exception\ParserException
+     */
+    public function testIntegerNearLimits($integerValue, $der)
+    {
+        $integer = new Integer($integerValue);
+        $this->assertEquals($der, bin2hex($integer->getBinary()));
+
+        $bin = hex2bin($der);
+        $parsed = Integer::fromBinary($bin);
+        $this->assertEquals($parsed->getType(), $integer->getType());
+        $this->assertEquals($parsed->getContent(), $integer->getContent());
+        $this->assertEquals($parsed->getObjectLength(), $integer->getObjectLength());
+    }
+
 }

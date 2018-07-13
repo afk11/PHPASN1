@@ -49,27 +49,50 @@ class Integer extends ASNObject implements Parsable
         $nrOfOctets = 1; // we need at least one octet
         $tmpValue = BigInteger::create($this->value, 10);
         $tmpValue = $tmpValue->absoluteValue();
-        while ($tmpValue->compare(127) > 0) {
-            $tmpValue = $tmpValue->shiftRight(8);
-            $nrOfOctets++;
+        if ($tmpValue->compare(128) > 0) {
+            while ($tmpValue->compare(128) > 0) {
+                $tmpValue = $tmpValue->shiftRight(8);
+                $nrOfOctets++;
+            }
         }
         return $nrOfOctets;
     }
 
-    protected function getEncodedValue()
+    private function getEncodedNegativeValue()
     {
         $numericValue = BigInteger::create($this->value);
         $contentLength = $this->getContentLength();
-
-        if ($numericValue->isNegative()) {
-            $numericValue = $numericValue->add(BigInteger::create(2)->toPower(8 * $contentLength)->subtract(1));
-            $numericValue = $numericValue->add(1);
-        }
+        $numericValue = $numericValue->subtract(BigInteger::create(2)->toPower(8 * $contentLength)->add(1));
 
         $result = '';
         for ($shiftLength = ($contentLength - 1) * 8; $shiftLength >= 0; $shiftLength -= 8) {
             $octet = $numericValue->shiftRight($shiftLength)->modulus(256)->toInteger();
             $result .= chr($octet);
+        }
+
+        if (!(ord($result[0]) & 0x80)) {
+            $result = chr(0xff) . $result;
+        }
+
+        return $result;
+    }
+
+    protected function getEncodedValue()
+    {
+        $numericValue = BigInteger::create($this->value);
+        if ($numericValue->isNegative()) {
+            return $this->getEncodedNegativeValue();
+        }
+
+        $contentLength = $this->getContentLength();
+        $result = '';
+        for ($shiftLength = ($contentLength - 1) * 8; $shiftLength >= 0; $shiftLength -= 8) {
+            $octet = $numericValue->shiftRight($shiftLength)->modulus(256)->toInteger();
+            $result .= chr($octet);
+        }
+
+        if (ord($result[0]) & 0x80) {
+            $result = chr(0x00) . $result;
         }
 
         return $result;
