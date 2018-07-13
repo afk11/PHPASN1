@@ -46,56 +46,59 @@ class Integer extends ASNObject implements Parsable
 
     protected function calculateContentLength()
     {
-        $nrOfOctets = 1; // we need at least one octet
-        $tmpValue = BigInteger::create($this->value, 10);
-        $tmpValue = $tmpValue->absoluteValue();
-        if ($tmpValue->compare(128) > 0) {
-            while ($tmpValue->compare(128) > 0) {
-                $tmpValue = $tmpValue->shiftRight(8);
-                $nrOfOctets++;
-            }
-        }
-        return $nrOfOctets;
-    }
-
-    private function getEncodedNegativeValue()
-    {
-        $numericValue = BigInteger::create($this->value);
-        $contentLength = $this->getContentLength();
-        $numericValue = $numericValue->subtract(BigInteger::create(2)->toPower(8 * $contentLength)->add(1));
-
-        $result = '';
-        for ($shiftLength = ($contentLength - 1) * 8; $shiftLength >= 0; $shiftLength -= 8) {
-            $octet = $numericValue->shiftRight($shiftLength)->modulus(256)->toInteger();
-            $result .= chr($octet);
-        }
-
-        if (!(ord($result[0]) & 0x80)) {
-            $result = chr(0xff) . $result;
-        }
-
-        return $result;
+        return strlen($this->getEncodedValue());
     }
 
     protected function getEncodedValue()
     {
-        $numericValue = BigInteger::create($this->value);
-        if ($numericValue->isNegative()) {
-            return $this->getEncodedNegativeValue();
+        $value = BigInteger::create($this->value);
+        $negative = $value->isNegative();
+        if ($negative) {
+             $value = $value->absoluteValue();
+             $limit = 0x80;
+        } else {
+             $limit = 0x7f;
         }
 
-        $contentLength = $this->getContentLength();
-        $result = '';
-        for ($shiftLength = ($contentLength - 1) * 8; $shiftLength >= 0; $shiftLength -= 8) {
-            $octet = $numericValue->shiftRight($shiftLength)->modulus(256)->toInteger();
-            $result .= chr($octet);
+        $mod = 0xff+1;
+        $values = [];
+        while($value->compare($limit) > 0) {
+            $values[] = (int) $value->modulus($mod)->toInteger();
+            $value = $value->shiftRight(8);
         }
 
-        if (ord($result[0]) & 0x80) {
-            $result = chr(0x00) . $result;
-        }
+        $values[] = (int) $value->modulus($mod)->toInteger();
+        print_R($values);
+        $numValues = count($values);
 
-        return $result;
+        if ($negative) {
+            for ($i = 0; $i < $numValues; $i++) {
+                $values[$i] = 0xff - $values[$i];
+            }
+            echo "1\n";
+            print_r($values);
+            for ($i = 0; $i < $numValues; $i++) {
+                $values[$i] += 1;
+                if ($values[$i] <= 0xff) {
+                    break;
+                }
+                assert($i != $numValues - 1);
+                $values[$i] = 0;
+            }
+            echo "2\n";
+            print_r($values);
+            if ($values[$numValues - 1] == 0x7f) {
+                $values[] = 0xff;
+            }
+            echo "3\n";
+            print_r($values);
+        }
+        print_r($values);
+        $values = array_reverse($values);
+        print_r($values);
+        $r = pack("C*", ...$values);
+        echo "result ".bin2hex($r).PHP_EOL;
+        return $r;
     }
 
     public static function fromBinary(&$binaryData, &$offsetIndex = 0)
