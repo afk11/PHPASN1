@@ -68,15 +68,12 @@ class Integer extends ASNObject implements Parsable
         }
 
         $values[] = (int) $value->modulus($mod)->toInteger();
-        print_R($values);
         $numValues = count($values);
 
         if ($negative) {
             for ($i = 0; $i < $numValues; $i++) {
                 $values[$i] = 0xff - $values[$i];
             }
-            echo "1\n";
-            print_r($values);
             for ($i = 0; $i < $numValues; $i++) {
                 $values[$i] += 1;
                 if ($values[$i] <= 0xff) {
@@ -85,19 +82,12 @@ class Integer extends ASNObject implements Parsable
                 assert($i != $numValues - 1);
                 $values[$i] = 0;
             }
-            echo "2\n";
-            print_r($values);
             if ($values[$numValues - 1] == 0x7f) {
                 $values[] = 0xff;
             }
-            echo "3\n";
-            print_r($values);
         }
-        print_r($values);
         $values = array_reverse($values);
-        print_r($values);
         $r = pack("C*", ...$values);
-        echo "result ".bin2hex($r).PHP_EOL;
         return $r;
     }
 
