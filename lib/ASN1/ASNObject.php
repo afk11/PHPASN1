@@ -314,13 +314,30 @@ abstract class ASNObject implements Parsable
         return $identifier;
     }
 
+    private static function getLengthMaxBits()
+    {
+        static $bits = null;
+
+        if (null === $bits) {
+            $num = PHP_INT_MAX;
+            $bits = 0;
+            while ($num != 0) {
+                $num = $num >> 1;
+                $bits++;
+            }
+        }
+
+        return $bits;
+    }
+
     protected static function parseContentLength(&$binaryData, &$offsetIndex, $minimumLength = 0)
     {
         if (strlen($binaryData) <= $offsetIndex) {
             throw new ParserException('Can not parse content length from data: Offset index larger than input size', $offsetIndex);
         }
 
-        $contentLength = gmp_init(ord($binaryData[$offsetIndex++]), 10);
+        $contentLength = ord($binaryData[$offsetIndex++]);
+        $reserved = 8;
         if (($contentLength & 0x80) != 0) {
             // bit 8 is set -> this is the long form
             $nrOfLengthOctets = $contentLength & 0x7F;
@@ -329,8 +346,13 @@ abstract class ASNObject implements Parsable
                 if (strlen($binaryData) <= $offsetIndex) {
                     throw new ParserException('Can not parse content length (long form) from data: Offset index larger than input size', $offsetIndex);
                 }
-                $contentLength = ($contentLength << 8) + gmp_init(ord($binaryData[$offsetIndex++]),10);
+                $contentLength = ($contentLength << 8) + ord($binaryData[$offsetIndex++]);
+                $reserved += 8;
             }
+        }
+
+        if ($reserved > self::getLengthMaxBits()) {
+            throw new ParserException('Can not parse content length from data: Overflow in length', $offsetIndex);
         }
 
         if ($contentLength < $minimumLength) {
