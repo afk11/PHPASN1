@@ -281,4 +281,17 @@ class IntegerTest extends ASN1TestCase
         $binaryData .= chr(0xA0);
         Integer::fromBinary($binaryData);
     }
+
+    /**
+     * @expectedException \FG\ASN1\Exception\ParserException
+     * @expectedExceptionMessage Invalid length for content
+     * @depends testFromBinary
+     */
+    public function testFromBinaryWithInvalidLengthTooLarge()
+    {
+        $binaryData  = chr(Identifier::INTEGER);
+        $binaryData .= chr(0x02);
+        $binaryData .= chr(0xA0);
+        Integer::fromBinary($binaryData);
+    }
 }
